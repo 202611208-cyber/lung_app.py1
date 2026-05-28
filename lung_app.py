@@ -8,8 +8,9 @@ import os
 # 현재 폴더의 폰트 사용 (GitHub 저장소에 NanumGothic.ttf가 있어야 합니다)
 font_path = "./NanumGothic.ttf"
 if os.path.exists(font_path):
+    # 💡 오타가 났던 변수명을 fontprop으로 완벽하게 통일했습니다.
     fontprop = fm.FontProperties(fname=font_path)
-    plt.rcParams['font.family'] = font_prop.get_name()
+    plt.rcParams['font.family'] = fontprop.get_name()
 else:
     fontprop = None
 
@@ -53,22 +54,19 @@ model, scaler, df = load_machine_learning_assets()
 
 # 배경 데이터 군집 미리 예측 (데이터가 존재할 때만)
 if df is not None:
-    # 💡 [해결 핵심 1] 스케일러가 학습했던 원본 영문 컬럼명 그대로 추출합니다.
-    # 만약 원본 csv의 컬럼명이 소문자(age, smokes..)일 수도 있으므로 맞춤 처리합니다.
+    # 스케일러가 학습했던 원본 영문 컬럼명 조건 체크
     age_col = 'Age' if 'Age' in df.columns else 'age'
     smoke_col = 'Smokes' if 'Smokes' in df.columns else ('smokes' if 'smokes' in df.columns else 'Smoking')
     alkhol_col = 'Alkhol' if 'Alkhol' in df.columns else ('alkhol' if 'alkhol' in df.columns else 'Alcohol')
     
-    # 영문 이름 그대로 데이터 추출하여 스케일링 진행 (에러 방지)
+    # 영문 이름 그대로 데이터 추출하여 스케일링 진행
     X_orig = df[[age_col, smoke_col, alkhol_col]]
-    
-    # 💡 [해결 핵심 2] 스케일러가 무조건 인식할 수 있도록 컬럼명을 정확히 맞춰 강제 주입합니다.
     X_orig.columns = ['Age', 'Smokes', 'Alkhol']
     
     X_scaled = scaler.transform(X_orig)
     df['cluster'] = model.predict(X_scaled)
     
-    # 시각화 및 앱 내부 처리를 위해 데이터프레임 컬럼명을 한글로 일괄 변경합니다.
+    # 시각화 및 앱 내부 처리를 위해 데이터프레임 컬럼명을 한글로 일괄 변경
     rename_dict = {
         age_col: '나이',
         smoke_col: '흡연량',
@@ -112,8 +110,7 @@ st.divider()
 # =========================
 if st.button("🔍 군집 분석하기", use_container_width=True):
 
-    # 💡 [해결 핵심 3] 새 환자 데이터를 스케일러에 넣을 때도 
-    # 학습 환경과 똑같은 영문 컬럼명인 ['Age', 'Smokes', 'Alkhol']로 뼈대를 만듭니다.
+    # 새 환자 데이터를 스케일러에 전달할 영문 컬럼명 형태로 생성
     new_patient = pd.DataFrame([[age, smoking, alcohol]], columns=['Age', 'Smokes', 'Alkhol'])
 
     # 스케일링 및 군집 예측
