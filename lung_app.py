@@ -102,15 +102,15 @@ if df is not None:
     scatter = ax.scatter(df['흡연'], df['음주'], c=df['cluster'], alpha=0.5, cmap='viridis', zorder=2)
     
     # 우상단 범례 타이틀 한글 변경
-    legend1 = ax.legend(*scatter.legend_elements(), title="군집 구분", loc="upper right")
+    legend1 = ax.legend(*scatter.legend_elements(), title="군집 시각화", loc="upper right")
     ax.add_artist(legend1)
 
 # 새 환자 위치 표시 (라벨 한글화)
-ax.scatter(smokes, alkhol, color='black', s=300, marker='X', label='새 환자 위치', zorder=3)
+ax.scatter(smokes, alkhol, color='black', s=300, marker='X', label='환자 상태', zorder=3)
 
 # 💡 요청하신 모든 라벨 및 타이틀을 완벽하게 한글로 세팅했습니다.
-ax.set_xlabel('흡연', fontsize=12)
-ax.set_ylabel('음주', fontsize=12)
+ax.set_xlabel('흡연량', fontsize=12)
+ax.set_ylabel('음주량', fontsize=12)
 ax.set_title('환자 분포 분석 데이터', fontsize=14, pad=15)
 
 ax.grid(True, linestyle='--', alpha=0.5, zorder=1)
