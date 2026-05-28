@@ -3,12 +3,16 @@ import pandas as pd
 import joblib
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
+import os
 
 # 현재 폴더의 폰트 사용 (GitHub 저장소에 NanumGothic.ttf가 있어야 합니다)
 font_path = "./NanumGothic.ttf"
-fontprop = fm.FontProperties(fname=font_path)
+if os.path.exists(font_path):
+    fontprop = fm.FontProperties(fname=font_path)
+    plt.rcParams['font.family'] = fontprop.get_name()
+else:
+    fontprop = None
 
-plt.rcParams['font.family'] = fontprop.get_name()
 plt.rcParams['axes.unicode_minus'] = False
 
 # =========================
@@ -21,32 +25,46 @@ st.set_page_config(
 )
 
 # =========================
-# 모델 & 스케일러 불러오기
+# 모델 & 스케일러 불러오기 (안전 구조 적용)
 # =========================
-model = joblib.load("lung_model.pkl")
-scaler = joblib.load("lung_scaler.pkl")
+@st.cache_resource
+def load_machine_learning_assets():
+    # 파일이 없을 때 서버가 뻗지 않도록 예외 처리
+    try:
+        model = joblib.load("lung_model.pkl")
+    except FileNotFoundError:
+        st.error("🚨 'lung_model.pkl' 파일을 찾을 수 없습니다. GitHub 업로드 상태를 확인해 주세요.")
+        st.stop()
+        
+    try:
+        scaler = joblib.load("lung_scaler.pkl")
+    except FileNotFoundError:
+        st.error("🚨 'lung_scaler.pkl' 파일을 찾을 수 없습니다. GitHub 업로드 상태를 확인해 주세요.")
+        st.stop()
+        
+    try:
+        df = pd.read_csv("lung.csv")
+        # 원본 CSV가 영문 컬럼명일 경우 한글로 통합 변환
+        rename_dict = {
+            'Age': '나이', 'age': '나이',
+            'Smokes': '흡연량', 'smokes': '흡연량', 'Smoking': '흡연량', 'smoking': '흡연량',
+            'Alkhol': '음주량', 'alkhol': '음주량', 'Alcohol': '음주량', 'alcohol': '음주량',
+            'Result': '폐암여부', 'result': '폐암여부'
+        }
+        df = df.rename(columns=rename_dict)
+    except FileNotFoundError:
+        df = None
+        st.sidebar.warning("⚠️ 'lung.csv' 파일이 없어 배경 데이터 시각화가 제한됩니다.")
+        
+    return model, scaler, df
 
-# =========================
-# 학습 데이터 불러오기 (시각화용)
-# =========================
-df = pd.read_csv("lung.csv")
+model, scaler, df = load_machine_learning_assets()
 
-# 원본 CSV가 영문 컬럼명일 경우 코드와 호환되도록 한글로 강제 변환
-rename_dict = {
-    'Age': '나이', 'age': '나이',
-    'Smokes': '흡연량', 'smokes': '흡연량', 'Smoking': '흡연량', 'smoking': '흡연량',
-    'Alkhol': '음주량', 'alkhol': '음주량', 'Alcohol': '음주량', 'alcohol': '음주량',
-    'Result': '폐암여부', 'result': '폐암여부'
-}
-df = df.rename(columns=rename_dict)
-
-X = df[['나이', '흡연량', '음주량']]
-
-# 스케일링
-X_scaled = scaler.transform(X)
-
-# 기존 데이터 군집 예측
-df['cluster'] = model.predict(X_scaled)
+# 배경 데이터 군집 미리 예측 (데이터가 존재할 때만)
+if df is not None:
+    X = df[['나이', '흡연량', '음주량']]
+    X_scaled = scaler.transform(X)
+    df['cluster'] = model.predict(X_scaled)
 
 # =========================
 # 제목
@@ -68,26 +86,13 @@ st.subheader("📋 환자 정보 입력")
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    age = st.number_input(
-        "나이",
-        min_value=0.0,
-        max_value=120.0,
-        value=50.0
-    )
+    age = st.number_input("나이", min_value=0.0, max_value=120.0, value=50.0)
 
 with col2:
-    smoking = st.number_input(
-        "흡연량",
-        min_value=0.0,
-        value=10.0
-    )
+    smoking = st.number_input("흡연량", min_value=0.0, value=10.0)
 
 with col3:
-    alcohol = st.number_input(
-        "음주량",
-        min_value=0.0,
-        value=5.0
-    )
+    alcohol = st.number_input("음주량", min_value=0.0, value=5.0)
 
 st.divider()
 
@@ -96,13 +101,11 @@ st.divider()
 # =========================
 if st.button("🔍 군집 분석하기", use_container_width=True):
 
-    # 🚨 [수정 완결] 에러가 났던 괄호 문제를 완벽하게 가독성 높은 형태로 재작성했습니다.
+    # 새로운 환자 데이터 생성 (괄호 완벽 정렬)
     new_patient = pd.DataFrame([[age, smoking, alcohol]], columns=['나이', '흡연량', '음주량'])
 
-    # 스케일링
+    # 스케일링 및 군집 예측
     new_patient_scaled = scaler.transform(new_patient)
-
-    # 군집 예측
     pred_cluster = model.predict(new_patient_scaled)
     cluster_num = pred_cluster[0]
 
@@ -111,47 +114,39 @@ if st.button("🔍 군집 분석하기", use_container_width=True):
     st.write("0번은 매우 건강군, 1번은 위험군, 2번은 건강군입니다.")
 
     # =========================
-    # 시각화 (한글 깨짐 차단 튜닝)
+    # 시각화 (한글 깨짐 방지 폰트 주입)
     # =========================
     fig, ax = plt.subplots(figsize=(8, 6))
 
-    # 기존 데이터 산점도 분포 배경 생성
-    scatter = ax.scatter(
-        df['흡연량'],
-        df['음주량'],
-        c=df['cluster'],
-        alpha=0.5,
-        cmap='viridis',
-        zorder=2
-    )
+    if df is not None:
+        # 기존 데이터 산점도 분포 배경 생성
+        scatter = ax.scatter(df['흡연량'], df['음주량'], c=df['cluster'], alpha=0.5, cmap='viridis', zorder=2)
+        
+        # 범례 타이틀 및 요소 한글화 적용
+        legend1 = ax.legend(*scatter.legend_elements(), title="군집 구분", loc="upper right")
+        if fontprop:
+            plt.setp(legend1.get_title(), fontproperties=fontprop) 
+            for text in legend1.get_texts():
+                text.set_fontproperties(fontprop)
+        ax.add_artist(legend1)
 
     # 사용자 위치 표시 (별표 마커)
-    ax.scatter(
-        smoking,
-        alcohol,
-        color='black',
-        s=300,
-        marker='*',
-        label='현재 환자 위치',
-        zorder=3
-    )
+    ax.scatter(smoking, alcohol, color='black', s=300, marker='*', label='현재 환자 위치', zorder=3)
 
-    # 모든 텍스트 요소에 fontproperties=fontprop를 적용하여 한글 깨짐을 방지합니다.
-    ax.set_xlabel("흡연량", fontproperties=fontprop, fontsize=12)
-    ax.set_ylabel("음주량", fontproperties=fontprop, fontsize=12)
-    ax.set_title("환자 군집 분포 시각화", fontproperties=fontprop, fontsize=14, pad=15)
-
-    # 범례 타이틀 및 요소 한글화 적용
-    legend1 = ax.legend(*scatter.legend_elements(), title="군집 구분", loc="upper right")
-    plt.setp(legend1.get_title(), fontproperties=fontprop) 
-    for text in legend1.get_texts():
-        text.set_fontproperties(fontprop)
-    ax.add_artist(legend1)
-
-    # 좌상단 현재 환자 마커 범례 생성
-    legend2 = ax.legend(loc="upper left")
-    for text in legend2.get_texts():
-        text.set_fontproperties(fontprop)
+    # 축 이름 및 타이틀 설정
+    if fontprop:
+        ax.set_xlabel("흡연량", fontproperties=fontprop, fontsize=12)
+        ax.set_ylabel("음주량", fontproperties=fontprop, fontsize=12)
+        ax.set_title("환자 군집 분포 시각화", fontproperties=fontprop, fontsize=14, pad=15)
+        
+        legend2 = ax.legend(loc="upper left")
+        for text in legend2.get_texts():
+            text.set_fontproperties(fontprop)
+    else:
+        ax.set_xlabel("흡연량", fontsize=12)
+        ax.set_ylabel("음주량", fontsize=12)
+        ax.set_title("환자 군집 분포 시각화", fontsize=14, pad=15)
+        ax.legend(loc="upper left")
 
     ax.grid(True, linestyle='--', alpha=0.5, zorder=1)
 
