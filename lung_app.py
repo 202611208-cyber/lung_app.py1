@@ -76,7 +76,7 @@ plt.rcParams['axes.unicode_minus'] = False
 # 배경에 기존 데이터들 뿌려주기
 if df is not None:
     scatter = ax.scatter(df['흡연'], df['음주'], c=df['cluster'], alpha=0.5, cmap='viridis', zorder=2)
-    legend1 = ax.legend(*scatter.legend_elements(), title="Cluster", loc="upper right")
+    legend1 = ax.legend(*scatter.legend_elements(), title="군집", loc="upper right")
     ax.add_artist(legend1)
 
 # 새 환자 위치 표시
