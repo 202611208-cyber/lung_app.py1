@@ -58,7 +58,7 @@ cluster_info = {
     0: "🟢 0번 군집 (매우 건강군)",
     1: "🟡 1번 군집 (건강군)",
     2: "🟠 2번 군집 (중간 그룹)",
-    3: "🔴 3번 군집 (강한 당뇨 위험군)"
+    3: "🔴 3번 군집 (강한 폐암 위험군)"
 }
 cluster_desc = cluster_info.get(pred_cluster, f"{pred_cluster}번 군집")
 
