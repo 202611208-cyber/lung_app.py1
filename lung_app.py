@@ -80,11 +80,11 @@ if df is not None:
     ax.add_artist(legend1)
 
 # 새 환자 위치 표시
-ax.scatter(smokes, alkhol, color='black', s=300, marker='X', label='New Patient', zorder=3)
+ax.scatter(smokes, alkhol, color='black', s=300, marker='X', label='환자 결과', zorder=3)
 
 # 웹 서버 환경 호환을 위해 영문 라벨 권장
-ax.set_xlabel('Smoking')
-ax.set_ylabel('Drinking')
+ax.set_xlabel('흡연')
+ax.set_ylabel('음주')
 ax.grid(True, linestyle='--', alpha=0.5, zorder=1)
 ax.legend(loc="upper left")
 
