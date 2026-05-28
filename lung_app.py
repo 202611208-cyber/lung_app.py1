@@ -7,7 +7,12 @@ import matplotlib.font_manager as fm
 import os
 import requests
 
-font_path = "NanumGothic.ttf"
+font_path = "./NanumGothic.ttf"
+
+fontprop = fm.FontProperties(fname=font_path)
+
+plt.rcParams['font.family'] = fontprop.get_name()
+plt.rcParams['axes.unicode_minus'] = False
 # 0. Streamlit Cloud(리눅스) 환경 한글 깨짐 방지를 위한 폰트 다운로드 함수
 @st.cache_resource
 def load_korean_font():
