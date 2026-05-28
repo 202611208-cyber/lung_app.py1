@@ -37,9 +37,9 @@ def load_machine_learning_assets():
         st.stop()
         
     try:
-        scaler = joblib.load("lung_scaler.pkl")
+        scaler = joblib.load("scaler.pkl")
     except FileNotFoundError:
-        st.error("🚨 'lung_scaler.pkl' 파일을 찾을 수 없습니다. GitHub 업로드 상태를 확인해 주세요.")
+        st.error("🚨 'scaler.pkl' 파일을 찾을 수 없습니다. GitHub 업로드 상태를 확인해 주세요.")
         st.stop()
         
     try:
