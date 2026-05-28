@@ -8,7 +8,6 @@ import os
 # 현재 폴더의 폰트 사용 (GitHub 저장소에 NanumGothic.ttf가 있어야 합니다)
 font_path = "./NanumGothic.ttf"
 if os.path.exists(font_path):
-    # 💡 오타가 났던 변수명을 fontprop으로 완벽하게 통일했습니다.
     fontprop = fm.FontProperties(fname=font_path)
     plt.rcParams['font.family'] = fontprop.get_name()
 else:
@@ -54,26 +53,23 @@ model, scaler, df = load_machine_learning_assets()
 
 # 배경 데이터 군집 미리 예측 (데이터가 존재할 때만)
 if df is not None:
-    # 스케일러가 학습했던 원본 영문 컬럼명 조건 체크
-    age_col = 'Age' if 'Age' in df.columns else 'age'
-    smoke_col = 'Smokes' if 'Smokes' in df.columns else ('smokes' if 'smokes' in df.columns else 'Smoking')
-    alkhol_col = 'Alkhol' if 'Alkhol' in df.columns else ('alkhol' if 'alkhol' in df.columns else 'Alcohol')
+    # 원본 CSV 컬럼 유연하게 체크 및 한글화
+    age_col = 'Age' if 'Age' in df.columns else ('age' if 'age' in df.columns else '나이')
+    smoke_col = 'Smokes' if 'Smokes' in df.columns else ('smokes' if 'smokes' in df.columns else ('Smoking' if 'Smoking' in df.columns else '흡연'))
+    alkhol_col = 'Alkhol' if 'Alkhol' in df.columns else ('alkhol' if 'alkhol' in df.columns else ('Alcohol' if 'Alcohol' in df.columns else '음주'))
     
-    # 영문 이름 그대로 데이터 추출하여 스케일링 진행
+    # 💡 [해결 핵심 1] 모델 학습 당시와 글자 하나까지 똑같이 '나이', '흡연', '음주'로 명명합니다.
     X_orig = df[[age_col, smoke_col, alkhol_col]]
-    X_orig.columns = ['Age', 'Smokes', 'Alkhol']
+    X_orig.columns = ['나이', '흡연', '음주']
     
+    # 스케일러 예측 진행
     X_scaled = scaler.transform(X_orig)
     df['cluster'] = model.predict(X_scaled)
     
-    # 시각화 및 앱 내부 처리를 위해 데이터프레임 컬럼명을 한글로 일괄 변경
-    rename_dict = {
-        age_col: '나이',
-        smoke_col: '흡연량',
-        alkhol_col: '음주량',
-        'Result': '폐암여부', 'result': '폐암여부'
-    }
-    df = df.rename(columns=rename_dict)
+    # 시각화용 데이터프레임 이름 통합
+    df['나이'] = X_orig['나이']
+    df['흡연'] = X_orig['흡연']
+    df['음주'] = X_orig['음주']
 
 # =========================
 # 제목
@@ -88,7 +84,7 @@ AI가 환자의 특성을 분석하여
 st.divider()
 
 # =========================
-# 사용자 입력
+# 사용자 입력 (화면에는 이쁘게 양 표기)
 # =========================
 st.subheader("📋 환자 정보 입력")
 
@@ -110,8 +106,8 @@ st.divider()
 # =========================
 if st.button("🔍 군집 분석하기", use_container_width=True):
 
-    # 새 환자 데이터를 스케일러에 전달할 영문 컬럼명 형태로 생성
-    new_patient = pd.DataFrame([[age, smoking, alcohol]], columns=['Age', 'Smokes', 'Alkhol'])
+    # 💡 [해결 핵심 2] 스케일러가 애타게 요구한 학습 전용 피처명 ['나이', '흡연', '음주'] 그대로 매핑합니다.
+    new_patient = pd.DataFrame([[age, smoking, alcohol]], columns=['나이', '흡연', '음주'])
 
     # 스케일링 및 군집 예측
     new_patient_scaled = scaler.transform(new_patient)
@@ -129,7 +125,7 @@ if st.button("🔍 군집 분석하기", use_container_width=True):
 
     if df is not None:
         # 기존 데이터 산점도 분포 배경 생성
-        scatter = ax.scatter(df['흡연량'], df['음주량'], c=df['cluster'], alpha=0.5, cmap='viridis', zorder=2)
+        scatter = ax.scatter(df['흡연'], df['음주'], c=df['cluster'], alpha=0.5, cmap='viridis', zorder=2)
         
         # 범례 타이틀 및 요소 한글화 적용
         legend1 = ax.legend(*scatter.legend_elements(), title="군집 구분", loc="upper right")
