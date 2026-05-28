@@ -3,6 +3,33 @@ import pandas as pd
 import numpy as np
 import joblib
 import matplotlib.pyplot as plt
+import matplotlib.font_manager as fm
+import os
+import requests
+
+# 0. Streamlit Cloud(리눅스) 환경 한글 깨짐 방지를 위한 폰트 다운로드 함수
+@st.cache_resource
+def load_korean_font():
+    font_url = "https://github.com/google/fonts/raw/main/ofl/nanumgothic/NanumGothic-Regular.ttf"
+    font_path = "NanumGothic.ttf"
+    
+    # 폰트 파일이 없으면 깃허브에서 다운로드
+    if not os.path.exists(font_path):
+        response = requests.get(font_url)
+        with open(font_path, "wb") as f:
+            f.write(response.content)
+            
+    # Matplotlib에 다운로드한 폰트 등록
+    font_prop = fm.FontProperties(fname=font_path)
+    plt.rcParams['font.family'] = font_prop.get_name()
+    plt.rcParams['axes.unicode_minus'] = False
+    return font_prop
+
+try:
+    font_prop = load_korean_font()
+except Exception:
+    # 예외 발생 시 기본 폰트 유지
+    font_prop = None
 
 # 1. 모델, 스케일러, 데이터셋 로드
 @st.cache_resource
@@ -13,7 +40,7 @@ def load_assets():
     try:
         df = pd.read_csv('lung.csv')
         
-        # 원본 CSV가 영문일 경우 주피터 노트북처럼 한글로 강제 변환
+        # 원본 CSV가 영문일 경우 한글로 변환
         rename_dict = {
             'Age': '나이', 'age': '나이',
             'Smokes': '흡연', 'smokes': '흡연',
@@ -22,7 +49,7 @@ def load_assets():
         }
         df = df.rename(columns=rename_dict)
         
-        # 원본 CSV에 'cluster' 열이 없을 수 있으므로 직접 채워줌
+        # 'cluster' 열이 없을 경우 예측값으로 직접 생성
         if 'cluster' not in df.columns:
             features = df[['나이', '흡연', '음주']]
             features_scaled = scaler.transform(features)
@@ -64,27 +91,27 @@ cluster_desc = cluster_info.get(pred_cluster, f"{pred_cluster}번 군집")
 
 st.markdown(f"### 이 환자는 **{cluster_desc}**에 속합니다.")
 
-# 6. 결과 시각화
+# 6. 결과 시각화 (한글 완벽 지원 튜닝)
 st.subheader("📍 군집 내 환자 위치 시각화")
 
 fig, ax = plt.subplots(figsize=(8, 6))
 
-# 💡 [팁] Streamlit Cloud(리눅스) 환경에서는 맑은고딕이 없어 한글이 깨질 수 있으므로
-# 축 이름은 영어로 지정하여 배포 에러 및 글꼴 깨짐을 안전하게 방지합니다.
-plt.rcParams['axes.unicode_minus'] = False
-
 # 배경에 기존 데이터들 뿌려주기
 if df is not None:
     scatter = ax.scatter(df['흡연'], df['음주'], c=df['cluster'], alpha=0.5, cmap='viridis', zorder=2)
-    legend1 = ax.legend(*scatter.legend_elements(), title="군집", loc="upper right")
+    
+    # 우상단 범례 타이틀 한글 변경
+    legend1 = ax.legend(*scatter.legend_elements(), title="군집 구분", loc="upper right")
     ax.add_artist(legend1)
 
-# 새 환자 위치 표시
-ax.scatter(smokes, alkhol, color='black', s=300, marker='X', label='환자 결과', zorder=3)
+# 새 환자 위치 표시 (라벨 한글화)
+ax.scatter(smokes, alkhol, color='black', s=300, marker='X', label='새 환자 위치', zorder=3)
 
-# 웹 서버 환경 호환을 위해 영문 라벨 권장
-ax.set_xlabel('흡연')
-ax.set_ylabel('음주')
+# 💡 요청하신 모든 라벨 및 타이틀을 완벽하게 한글로 세팅했습니다.
+ax.set_xlabel('흡연', fontsize=12)
+ax.set_ylabel('음주', fontsize=12)
+ax.set_title('환자 분포 분석 데이터', fontsize=14, pad=15)
+
 ax.grid(True, linestyle='--', alpha=0.5, zorder=1)
 ax.legend(loc="upper left")
 
