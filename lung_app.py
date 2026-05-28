@@ -9,7 +9,7 @@ import os
 font_path = "./NanumGothic.ttf"
 if os.path.exists(font_path):
     fontprop = fm.FontProperties(fname=font_path)
-    plt.rcParams['font.family'] = fontprop.get_name()
+    plt.rcParams['font.family'] = font_prop.get_name()
 else:
     fontprop = None
 
@@ -29,7 +29,6 @@ st.set_page_config(
 # =========================
 @st.cache_resource
 def load_machine_learning_assets():
-    # 파일이 없을 때 서버가 뻗지 않도록 예외 처리
     try:
         model = joblib.load("lung_model.pkl")
     except FileNotFoundError:
@@ -37,21 +36,13 @@ def load_machine_learning_assets():
         st.stop()
         
     try:
-        scaler = joblib.load("scaler.pkl")
+        scaler = joblib.load("lung_scaler.pkl")
     except FileNotFoundError:
-        st.error("🚨 'scaler.pkl' 파일을 찾을 수 없습니다. GitHub 업로드 상태를 확인해 주세요.")
+        st.error("🚨 'lung_scaler.pkl' 파일을 찾을 수 없습니다. GitHub 업로드 상태를 확인해 주세요.")
         st.stop()
         
     try:
         df = pd.read_csv("lung.csv")
-        # 원본 CSV가 영문 컬럼명일 경우 한글로 통합 변환
-        rename_dict = {
-            'Age': '나이', 'age': '나이',
-            'Smokes': '흡연량', 'smokes': '흡연량', 'Smoking': '흡연량', 'smoking': '흡연량',
-            'Alkhol': '음주량', 'alkhol': '음주량', 'Alcohol': '음주량', 'alcohol': '음주량',
-            'Result': '폐암여부', 'result': '폐암여부'
-        }
-        df = df.rename(columns=rename_dict)
     except FileNotFoundError:
         df = None
         st.sidebar.warning("⚠️ 'lung.csv' 파일이 없어 배경 데이터 시각화가 제한됩니다.")
@@ -62,9 +53,29 @@ model, scaler, df = load_machine_learning_assets()
 
 # 배경 데이터 군집 미리 예측 (데이터가 존재할 때만)
 if df is not None:
-    X = df[['나이', '흡연량', '음주량']]
-    X_scaled = scaler.transform(X)
+    # 💡 [해결 핵심 1] 스케일러가 학습했던 원본 영문 컬럼명 그대로 추출합니다.
+    # 만약 원본 csv의 컬럼명이 소문자(age, smokes..)일 수도 있으므로 맞춤 처리합니다.
+    age_col = 'Age' if 'Age' in df.columns else 'age'
+    smoke_col = 'Smokes' if 'Smokes' in df.columns else ('smokes' if 'smokes' in df.columns else 'Smoking')
+    alkhol_col = 'Alkhol' if 'Alkhol' in df.columns else ('alkhol' if 'alkhol' in df.columns else 'Alcohol')
+    
+    # 영문 이름 그대로 데이터 추출하여 스케일링 진행 (에러 방지)
+    X_orig = df[[age_col, smoke_col, alkhol_col]]
+    
+    # 💡 [해결 핵심 2] 스케일러가 무조건 인식할 수 있도록 컬럼명을 정확히 맞춰 강제 주입합니다.
+    X_orig.columns = ['Age', 'Smokes', 'Alkhol']
+    
+    X_scaled = scaler.transform(X_orig)
     df['cluster'] = model.predict(X_scaled)
+    
+    # 시각화 및 앱 내부 처리를 위해 데이터프레임 컬럼명을 한글로 일괄 변경합니다.
+    rename_dict = {
+        age_col: '나이',
+        smoke_col: '흡연량',
+        alkhol_col: '음주량',
+        'Result': '폐암여부', 'result': '폐암여부'
+    }
+    df = df.rename(columns=rename_dict)
 
 # =========================
 # 제목
@@ -101,8 +112,9 @@ st.divider()
 # =========================
 if st.button("🔍 군집 분석하기", use_container_width=True):
 
-    # 새로운 환자 데이터 생성 (괄호 완벽 정렬)
-    new_patient = pd.DataFrame([[age, smoking, alcohol]], columns=['나이', '흡연량', '음주량'])
+    # 💡 [해결 핵심 3] 새 환자 데이터를 스케일러에 넣을 때도 
+    # 학습 환경과 똑같은 영문 컬럼명인 ['Age', 'Smokes', 'Alkhol']로 뼈대를 만듭니다.
+    new_patient = pd.DataFrame([[age, smoking, alcohol]], columns=['Age', 'Smokes', 'Alkhol'])
 
     # 스케일링 및 군집 예측
     new_patient_scaled = scaler.transform(new_patient)
